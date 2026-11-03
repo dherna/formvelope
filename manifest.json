@@ -1,0 +1,52 @@
+{
+  "manifest_version": 3,
+  "name": "Formvelope",
+  "version": "0.1.0",
+  "description": "Cifra texto de formularios con una clave pública OpenPGP.",
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png"
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "optional_host_permissions": [
+    "*://*/*"
+  ],
+  "action": {
+    "default_title": "Formvelope",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    },
+    "default_popup": "popup.html"
+  },
+  "sidebar_action": {
+    "default_title": "Formvelope",
+    "default_panel": "sidebar.html"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "background": {
+    "scripts": [
+      "build/background.js"
+    ]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "formvelope@local",
+      "strict_min_version": "140.0",
+      "data_collection_permissions": {
+        "required": ["none"],
+        "optional": []
+      }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
+    }
+  }
+}

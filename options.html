@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Opciones de Formvelope</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="options">
+      <h1>Clave pública OpenPGP</h1>
+      <p>Selecciona un archivo ASCII-armored de clave pública (.asc, .gpg o .pgp) con capacidad de cifrado.</p>
+      <form id="key-form">
+        <label for="key-file">Archivo de clave pública</label>
+        <input id="key-file" type="file" accept=".asc,.gpg,.pgp,text/plain" required>
+        <button type="submit">Importar clave</button>
+      </form>
+      <section aria-labelledby="current-key-heading">
+        <h2 id="current-key-heading">Clave pública configurada</h2>
+        <p id="key-status">Comprobando...</p>
+        <button id="remove-key" type="button" class="secondary" hidden>Eliminar clave</button>
+      </section>
+      <section aria-labelledby="private-key-heading">
+        <h2 id="private-key-heading">Clave privada OpenPGP</h2>
+        <p>Importa una clave privada ASCII-armored protegida con contraseña. Se guarda el archivo cifrado en el almacenamiento local de Firefox; la contraseña no se guarda y se pedirá al iniciar una sesión de descifrado.</p>
+        <form id="private-key-form">
+          <label for="private-key-file">Archivo de clave privada</label>
+          <input id="private-key-file" type="file" accept=".asc,.gpg,.pgp,text/plain" required>
+          <label for="import-passphrase">Contraseña de la clave privada</label>
+          <input id="import-passphrase" type="password" autocomplete="off" required>
+          <button type="submit">Importar clave privada</button>
+        </form>
+        <p id="private-key-status">Comprobando...</p>
+        <button id="remove-private-key" type="button" class="secondary" hidden>Eliminar clave privada</button>
+      </section>
+      <section aria-labelledby="page-decryption-heading">
+        <h2 id="page-decryption-heading">Descifrado de páginas y sesión</h2>
+        <p>La clave desbloqueada se conserva en el almacenamiento de sesión volátil de la extensión durante el tiempo elegido, incluso al cambiar de página. No se guarda la contraseña y la sesión termina al cerrar Firefox o recargar la extensión. El descifrado se limita a los dominios permitidos y sus subdominios.</p>
+        <form id="settings-form">
+          <label for="decryption-mode">Descifrado en páginas permitidas</label>
+          <select id="decryption-mode">
+            <option value="manual">Solo al pulsar «Descifrar contenido cifrado de esta página»</option>
+            <option value="automatic">Automático al cargar páginas permitidas</option>
+          </select>
+          <label for="session-duration">Duración de la sesión (minutos)</label>
+          <input id="session-duration" type="number" min="1" max="1440" step="1" required>
+          <button type="submit">Guardar configuración</button>
+        </form>
+        <p id="session-status" role="status" aria-live="polite"></p>
+        <button id="lock-session" type="button" class="secondary">Cerrar sesión ahora</button>
+        <form id="domain-form">
+          <label for="domain-input">Dominio permitido</label>
+          <input id="domain-input" type="text" placeholder="ejemplo.org" autocomplete="off" required>
+          <button type="submit">Añadir dominio y conceder permiso</button>
+        </form>
+        <ul id="allowed-domains"></ul>
+      </section>
+      <p id="status" role="status" aria-live="polite"></p>
+    </main>
+    <script src="build/options.js"></script>
+  </body>
+</html>
