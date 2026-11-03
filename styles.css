@@ -10,6 +10,21 @@ body {
   padding: 1rem;
 }
 
+body.options {
+  color-scheme: light;
+  color: #242424;
+  background: #fafafa;
+}
+
+body.options input,
+body.options select {
+  padding: 0.45rem 0.5rem;
+  color: #242424;
+  border: 1px solid #b5b5b5;
+  border-radius: 0.35rem;
+  background: #fff;
+}
+
 body.popup {
   width: 320px;
   min-height: 360px;
