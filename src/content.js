@@ -24,6 +24,9 @@ if (!globalThis.formvelopeContentLoaded) {
       .map(([ciphertext]) => ciphertext);
   }
 
+  const isArmoredMessage = (text) =>
+    /^-----BEGIN PGP MESSAGE-----[\s\S]*-----END PGP MESSAGE-----$/.test(text.trim());
+
   function replaceArmoredMessages(text, plaintexts) {
     let result = "";
     let cursor = 0;
