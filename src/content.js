@@ -6,6 +6,39 @@ if (!globalThis.formvelopeContentLoaded) {
     field instanceof HTMLTextAreaElement ||
     (field instanceof HTMLElement && field.isContentEditable);
 
+  const RICH_TEXT_EDITOR_SELECTOR = [
+    ".ProseMirror",
+    ".tiptap",
+    "[data-slate-editor]",
+    "[data-slate-node=\"value\"]",
+    "[data-lexical-editor]",
+    ".ql-editor",
+    ".public-DraftEditor-content",
+    "[data-contents=\"true\"]",
+    ".ck-editor__editable",
+    ".ck-content",
+    ".cke_editable",
+    ".mce-content-body",
+    ".fr-element",
+    ".note-editable",
+    ".trumbowyg-editor",
+    ".medium-editor-element",
+    ".codex-editor"
+  ].join(", ");
+
+  const isRichTextEditor = (field) =>
+    field instanceof HTMLElement &&
+    (field.closest(RICH_TEXT_EDITOR_SELECTOR) !== null ||
+      field.querySelector(RICH_TEXT_EDITOR_SELECTOR) !== null);
+
+  const isSupportedTextEditor = (field) =>
+    isTextEditor(field) && !isRichTextEditor(field);
+
+  const textEditorError = (field) =>
+    isTextEditor(field) && isRichTextEditor(field)
+      ? "Este editor enriquecido no es compatible; usa un área de texto."
+      : "Enfoca un área de texto o un editor de texto compatible.";
+
   const readField = (field) =>
     field instanceof HTMLTextAreaElement ? field.value : field.innerText;
 
@@ -142,7 +175,7 @@ if (!globalThis.formvelopeContentLoaded) {
     const ciphertexts = [];
     const edits = [];
     const editors = [...document.querySelectorAll("textarea, [contenteditable]")]
-      .filter(isTextEditor);
+      .filter(isSupportedTextEditor);
     for (const field of editors) {
       const originalText = readField(field);
       const messages = getArmoredMessages(originalText);
@@ -281,10 +314,10 @@ if (!globalThis.formvelopeContentLoaded) {
   browser.runtime.onMessage.addListener(async (message) => {
     if (message?.type === "encrypt-focused-field") {
       const field = document.activeElement;
-      if (!isTextEditor(field)) {
+      if (!isSupportedTextEditor(field)) {
         return {
           ok: false,
-          error: "Enfoca un área de texto o un editor de texto compatible."
+          error: textEditorError(field)
         };
       }
 
@@ -313,19 +346,36 @@ if (!globalThis.formvelopeContentLoaded) {
           error: "Enfoca un área multilínea dentro del formulario que quieras cifrar."
         };
       }
+      if (isRichTextEditor(focusedField)) {
+        return { ok: false, error: textEditorError(focusedField) };
+      }
 
       const form = focusedField.closest("form");
       if (!form) {
         return { ok: false, error: "El campo enfocado no pertenece a un formulario." };
       }
 
-      const fields = [...form.querySelectorAll("textarea, [contenteditable]")]
-        .filter((field) =>
-          isTextEditor(field) &&
-          !field.matches(":disabled, [readonly]") &&
-          readField(field).trim() &&
-          !isArmoredMessage(readField(field))
-        );
+      const formFields = [...form.querySelectorAll("textarea, [contenteditable]")]
+        .filter(isTextEditor);
+      const unsupportedFields = formFields.filter((field) =>
+        !field.matches(":disabled, [readonly]") &&
+        readField(field).trim() &&
+        !isArmoredMessage(readField(field)) &&
+        !isSupportedTextEditor(field)
+      );
+      if (unsupportedFields.length > 0) {
+        return {
+          ok: false,
+          error: "El formulario contiene un editor enriquecido no compatible; usa un área de texto."
+        };
+      }
+
+      const fields = formFields.filter((field) =>
+        isSupportedTextEditor(field) &&
+        !field.matches(":disabled, [readonly]") &&
+        readField(field).trim() &&
+        !isArmoredMessage(readField(field))
+      );
       if (fields.length === 0) {
         return {
           ok: false,
@@ -347,10 +397,10 @@ if (!globalThis.formvelopeContentLoaded) {
 
     if (message?.type === "get-focused-text") {
       const field = document.activeElement;
-      if (!isTextEditor(field)) {
+      if (!isSupportedTextEditor(field)) {
         return {
           ok: false,
-          error: "Enfoca un área de texto o un editor de texto compatible."
+          error: textEditorError(field)
         };
       }
       focusedTextField = field;
@@ -359,10 +409,10 @@ if (!globalThis.formvelopeContentLoaded) {
 
     if (message?.type === "replace-focused-text") {
       const field = focusedTextField;
-      if (!isTextEditor(field)) {
+      if (!isSupportedTextEditor(field)) {
         return {
           ok: false,
-          error: "Enfoca un área de texto o un editor de texto compatible."
+          error: textEditorError(field)
         };
       }
       if (typeof message.text !== "string") {

@@ -24,7 +24,7 @@ correspondiente.
    (`.asc`, `.gpg` o `.pgp`) con capacidad de cifrado.
 6. (Opcional) Importa una clave privada ASCII-armored protegida por contraseña
    para poder descifrar mensajes destinados a ella.
-7. En una página web, enfoca un campo `<textarea>` o un editor `contenteditable`,
+7. En una página web, enfoca un campo `<textarea>` o un `contenteditable` simple,
    abre el popup y pulsa **Cifrar campo enfocado**.
 
 En la barra inferior negra, el botón de engranaje abre la configuración de
@@ -32,7 +32,10 @@ claves y el botón contiguo alterna entre el popup y la barra lateral de Firefox
 La barra lateral tiene un fondo gris claro.
 
 El popup reemplaza el contenido original por el mensaje cifrado ASCII-armored.
-Para consultar un mensaje cifrado, enfoca su campo, escribe la contraseña de la
+Los editores enriquecidos conocidos (ProseMirror, TipTap, Slate, Lexical, Quill,
+Draft.js, CKEditor, TinyMCE, Froala, Summernote, Editor.js y Medium Editor) se
+bloquean para evitar que su estado interno conserve el texto en claro. Para
+consultar un mensaje cifrado, enfoca su campo, escribe la contraseña de la
 clave privada en el popup y pulsa **Descifrar campo enfocado**. También puedes
 cifrar en bloque las áreas multilínea del formulario enfocado o descifrar
 fragmentos cifrados visibles en la página, también dentro de tablas. Los
