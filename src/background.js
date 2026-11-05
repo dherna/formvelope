@@ -11,6 +11,7 @@ const PRIVATE_KEY_STORAGE_NAME = "privateKey";
 const PRIVATE_KEY_SESSION_STORAGE_NAME = "privateKeySession";
 const SETTINGS_STORAGE_NAME = "formvelopeSettings";
 const AUTOMATIC_SCRIPT_ID = "formvelope-automatic-decryption";
+const PRIVATE_KEY_SESSION_ALARM_NAME = "formvelope-private-key-session-expiry";
 
 const DEFAULT_SETTINGS = {
   decryptionMode: "manual",
@@ -19,7 +20,6 @@ const DEFAULT_SETTINGS = {
 };
 
 let privateKeySession;
-let sessionTimer;
 
 async function importEncryptionKey(armoredKey) {
   if (typeof armoredKey !== "string" || !armoredKey.trim()) {
@@ -89,25 +89,37 @@ async function getSettings() {
 }
 
 async function clearPrivateKeySession() {
-  if (sessionTimer !== undefined) {
-    clearTimeout(sessionTimer);
-    sessionTimer = undefined;
-  }
   privateKeySession = undefined;
   await browser.storage.session.remove(PRIVATE_KEY_SESSION_STORAGE_NAME);
+  await browser.alarms.clear(PRIVATE_KEY_SESSION_ALARM_NAME);
 }
 
-function schedulePrivateKeySessionExpiry(expiresAt) {
-  if (sessionTimer !== undefined) {
-    clearTimeout(sessionTimer);
+async function schedulePrivateKeySessionExpiry(expiresAt) {
+  await browser.alarms.clear(PRIVATE_KEY_SESSION_ALARM_NAME);
+  await browser.alarms.create(PRIVATE_KEY_SESSION_ALARM_NAME, { when: expiresAt });
+}
+
+async function handlePrivateKeySessionAlarm(alarm) {
+  if (alarm.name !== PRIVATE_KEY_SESSION_ALARM_NAME) {
+    return;
   }
-  sessionTimer = setTimeout(() => {
-    if (privateKeySession?.expiresAt === expiresAt) {
-      clearPrivateKeySession().catch((error) => {
-        console.error("No se pudo cerrar la sesión de descifrado:", error);
-      });
-    }
-  }, Math.max(0, expiresAt - Date.now()));
+
+  const stored = await browser.storage.session.get(
+    PRIVATE_KEY_SESSION_STORAGE_NAME
+  );
+  const savedSession = stored[PRIVATE_KEY_SESSION_STORAGE_NAME];
+  const expiresAt = Math.max(
+    Number.isFinite(privateKeySession?.expiresAt)
+      ? privateKeySession.expiresAt
+      : 0,
+    Number.isFinite(savedSession?.expiresAt) ? savedSession.expiresAt : 0
+  );
+  if (expiresAt > Date.now()) {
+    await schedulePrivateKeySessionExpiry(expiresAt);
+    return;
+  }
+
+  await clearPrivateKeySession();
 }
 
 async function storePrivateKeySession(privateKey, startedAt, expiresAt) {
@@ -119,7 +131,7 @@ async function storePrivateKeySession(privateKey, startedAt, expiresAt) {
     }
   });
   privateKeySession = { privateKey, startedAt, expiresAt };
-  schedulePrivateKeySessionExpiry(expiresAt);
+  await schedulePrivateKeySessionExpiry(expiresAt);
 }
 
 async function getPrivateKeySession() {
@@ -162,7 +174,7 @@ async function getPrivateKeySession() {
     startedAt: savedSession.startedAt,
     expiresAt: savedSession.expiresAt
   };
-  schedulePrivateKeySessionExpiry(savedSession.expiresAt);
+  await schedulePrivateKeySessionExpiry(savedSession.expiresAt);
   return privateKeySession;
 }
 
@@ -284,6 +296,11 @@ browser.runtime.onInstalled.addListener(() => {
 });
 browser.permissions.onRemoved.addListener(() => {
   syncAutomaticContentScript().catch(reportAutomaticScriptError);
+});
+browser.alarms.onAlarm.addListener((alarm) => {
+  handlePrivateKeySessionAlarm(alarm).catch((error) => {
+    console.error("No se pudo cerrar la sesión de descifrado:", error);
+  });
 });
 
 async function handleMessage(message, sender) {
