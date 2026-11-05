@@ -227,6 +227,17 @@ async function isAllowedPage(url, settings) {
   return false;
 }
 
+async function isAllowedSenderPage(sender, settings) {
+  if (sender?.tab) {
+    return isAllowedPage(sender.url ?? sender.tab.url, settings);
+  }
+  const [tab] = await browser.tabs.query({
+    active: true,
+    lastFocusedWindow: true
+  });
+  return isAllowedPage(tab?.url, settings);
+}
+
 async function syncAutomaticContentScript() {
   const registered = await browser.scripting.getRegisteredContentScripts();
   if (registered.some(({ id }) => id === AUTOMATIC_SCRIPT_ID)) {
@@ -447,6 +458,10 @@ async function handleMessage(message, sender) {
   }
 
   if (message?.type === "decrypt-text") {
+    const settings = await getSettings();
+    if (!await isAllowedSenderPage(sender, settings)) {
+      throw new Error("Este dominio no está permitido o falta su permiso.");
+    }
     const privateKey = await getDecryptedPrivateKey(message.passphrase);
     const session = await getPrivateKeySession();
     if (!session) {
