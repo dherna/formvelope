@@ -40,8 +40,10 @@ fragmentos se reconocen por los marcadores de un mensaje OpenPGP y se
 reemplazan por texto, manteniendo el resto de la estructura y el formato HTML.
 
 En las opciones puedes configurar una sesión temporal (1–1440 minutos) y añadir
-dominios permitidos. Firefox solicitará permiso para cada dominio; se incluye
-también el acceso a sus subdominios. El modo automático descifra los fragmentos
+dominios permitidos. Solo se admiten dominios HTTPS y se rechazan los sufijos
+públicos, como `com` o `github.io`. Firefox solicitará permiso para cada dominio;
+marca la casilla correspondiente si quieres incluir también sus subdominios. El
+modo automático descifra los fragmentos
 de texto que encuentre (incluidas celdas y secciones de tablas) al cargar
 páginas permitidas mientras la sesión siga activa. El modo
 manual requiere pulsar **Descifrar contenido cifrado de esta página**. La sesión

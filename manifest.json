@@ -13,7 +13,7 @@
     "storage"
   ],
   "optional_host_permissions": [
-    "*://*/*"
+    "https://*/*"
   ],
   "action": {
     "default_title": "Formvelope",

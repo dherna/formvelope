@@ -1,4 +1,10 @@
 import * as openpgp from "openpgp";
+import {
+  domainMatchesAllowedDomain,
+  hostPermissionPatterns,
+  isValidAllowedDomain,
+  normalizeAllowedDomain
+} from "./domain.js";
 
 const KEY_STORAGE_NAME = "recipientPublicKey";
 const PRIVATE_KEY_STORAGE_NAME = "privateKey";
@@ -53,11 +59,32 @@ async function unlockPrivateKey(armoredKey, passphrase) {
   return openpgp.decryptKey({ privateKey, passphrase });
 }
 
+function normalizeAllowedDomains(entries) {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+  const domains = [];
+  const seen = new Set();
+  for (const entry of entries) {
+    const allowedDomain = normalizeAllowedDomain(entry);
+    if (!isValidAllowedDomain(allowedDomain) || seen.has(allowedDomain.domain)) {
+      continue;
+    }
+    seen.add(allowedDomain.domain);
+    domains.push(allowedDomain);
+  }
+  return domains;
+}
+
 async function getSettings() {
   const stored = await browser.storage.local.get(SETTINGS_STORAGE_NAME);
-  return {
+  const settings = {
     ...DEFAULT_SETTINGS,
     ...(stored[SETTINGS_STORAGE_NAME] ?? {})
+  };
+  return {
+    ...settings,
+    allowedDomains: normalizeAllowedDomains(settings.allowedDomains)
   };
 }
 
@@ -177,26 +204,6 @@ async function decryptText(ciphertext, privateKey) {
   return decrypted.data;
 }
 
-function hostPermissionPatterns(domain) {
-  return [`*://${domain}/*`, `*://*.${domain}/*`];
-}
-
-function isValidDomain(domain) {
-  if (typeof domain !== "string" || !domain || domain !== domain.toLowerCase()) {
-    return false;
-  }
-  try {
-    const url = new URL(`https://${domain}`);
-    return url.hostname === domain &&
-      url.pathname === "/" &&
-      !url.port &&
-      !url.username &&
-      !url.password;
-  } catch {
-    return false;
-  }
-}
-
 async function isAllowedPage(url, settings) {
   if (typeof url !== "string") {
     return false;
@@ -207,11 +214,11 @@ async function isAllowedPage(url, settings) {
   } catch {
     return false;
   }
-  const matchingDomains = settings.allowedDomains.filter((domain) =>
-    hostname === domain || hostname.endsWith(`.${domain}`)
+  const matchingDomains = settings.allowedDomains.filter((entry) =>
+    domainMatchesAllowedDomain(hostname, entry)
   );
-  for (const domain of matchingDomains) {
-    for (const pattern of hostPermissionPatterns(domain)) {
+  for (const entry of matchingDomains) {
+    for (const pattern of hostPermissionPatterns(entry)) {
       if (await browser.permissions.contains({ origins: [pattern] })) {
         return true;
       }
@@ -234,8 +241,8 @@ async function syncAutomaticContentScript() {
   }
 
   const matches = [];
-  for (const domain of settings.allowedDomains) {
-    for (const pattern of hostPermissionPatterns(domain)) {
+  for (const entry of settings.allowedDomains) {
+    for (const pattern of hostPermissionPatterns(entry)) {
       if (await browser.permissions.contains({ origins: [pattern] })) {
         matches.push(pattern);
       }
@@ -324,10 +331,14 @@ async function handleMessage(message, sender) {
     ) {
       throw new Error("La duración de sesión debe estar entre 1 y 1440 minutos.");
     }
+    const normalizedAllowedDomains = Array.isArray(allowedDomains)
+      ? allowedDomains.map(normalizeAllowedDomain)
+      : [];
     if (
       !Array.isArray(allowedDomains) ||
-      !allowedDomains.every(isValidDomain) ||
-      new Set(allowedDomains).size !== allowedDomains.length
+      !normalizedAllowedDomains.every(isValidAllowedDomain) ||
+      new Set(normalizedAllowedDomains.map(({ domain }) => domain)).size !==
+        normalizedAllowedDomains.length
     ) {
       throw new Error("La lista de dominios permitidos no es válida.");
     }
@@ -337,7 +348,7 @@ async function handleMessage(message, sender) {
       [SETTINGS_STORAGE_NAME]: {
         decryptionMode,
         sessionDurationMinutes,
-        allowedDomains
+        allowedDomains: normalizedAllowedDomains
       }
     });
     if (session) {

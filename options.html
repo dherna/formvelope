@@ -35,7 +35,7 @@
       </section>
       <section aria-labelledby="page-decryption-heading">
         <h2 id="page-decryption-heading">Descifrado de páginas y sesión</h2>
-        <p>La clave desbloqueada se conserva en el almacenamiento de sesión volátil de la extensión durante el tiempo elegido, incluso al cambiar de página. No se guarda la contraseña y la sesión termina al cerrar Firefox o recargar la extensión. El descifrado se limita a los dominios permitidos y sus subdominios.</p>
+        <p>La clave desbloqueada se conserva en el almacenamiento de sesión volátil de la extensión durante el tiempo elegido, incluso al cambiar de página. No se guarda la contraseña y la sesión termina al cerrar Firefox o recargar la extensión. El descifrado se limita a los dominios HTTPS permitidos y, si se marca la opción, a sus subdominios.</p>
         <form id="settings-form">
           <label for="decryption-mode">Descifrado en páginas permitidas</label>
           <select id="decryption-mode">
@@ -51,6 +51,10 @@
         <form id="domain-form">
           <label for="domain-input">Dominio permitido</label>
           <input id="domain-input" type="text" placeholder="ejemplo.org" autocomplete="off" required>
+          <label>
+            <input id="include-subdomains" type="checkbox">
+            Incluir también sus subdominios
+          </label>
           <button type="submit">Añadir dominio y conceder permiso</button>
         </form>
         <ul id="allowed-domains"></ul>

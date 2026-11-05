@@ -1,3 +1,9 @@
+import {
+  hostPermissionPatterns,
+  isValidDomain
+} from "./domain.js";
+import { isPublicSuffix } from "./publicSuffix.js";
+
 const keyForm = document.querySelector("#key-form");
 const keyFile = document.querySelector("#key-file");
 const keyStatus = document.querySelector("#key-status");
@@ -15,6 +21,7 @@ const sessionStatus = document.querySelector("#session-status");
 const lockSessionButton = document.querySelector("#lock-session");
 const domainForm = document.querySelector("#domain-form");
 const domainInput = document.querySelector("#domain-input");
+const includeSubdomains = document.querySelector("#include-subdomains");
 const allowedDomainsList = document.querySelector("#allowed-domains");
 let savedSettings;
 
@@ -34,15 +41,11 @@ async function refreshKeyStatus() {
   removePrivateKeyButton.hidden = !result.privateKey.configured;
 }
 
-function getHostPermissionPatterns(domain) {
-  return [`*://${domain}/*`, `*://*.${domain}/*`];
-}
-
 function normalizeDomain(value) {
   const input = value.trim();
   const url = new URL(input.includes("://") ? input : `https://${input}`);
   if (
-    !["http:", "https:"].includes(url.protocol) ||
+    url.protocol !== "https:" ||
     url.pathname !== "/" ||
     url.search ||
     url.hash ||
@@ -50,23 +53,33 @@ function normalizeDomain(value) {
     url.username ||
     url.password
   ) {
-    throw new Error("Introduce solo un dominio, sin ruta ni puerto.");
+    throw new Error("Introduce solo un dominio HTTPS, sin ruta ni puerto.");
   }
-  return url.hostname.toLowerCase();
+  const domain = url.hostname.toLowerCase();
+  if (!isValidDomain(domain)) {
+    if (isPublicSuffix(domain)) {
+      throw new Error("No se puede permitir un sufijo público como com o github.io.");
+    }
+    throw new Error("El dominio no es válido.");
+  }
+  return domain;
 }
 
 function renderAllowedDomains() {
   allowedDomainsList.replaceChildren();
-  for (const domain of savedSettings.allowedDomains) {
+  for (const allowedDomain of savedSettings.allowedDomains) {
+    const { domain, includeSubdomains: withSubdomains } = allowedDomain;
     const item = document.createElement("li");
     const label = document.createElement("span");
-    label.textContent = `${domain} y sus subdominios`;
+    label.textContent = withSubdomains
+      ? `${domain} y sus subdominios`
+      : `${domain} (solo este dominio)`;
     const removeDomainButton = document.createElement("button");
     removeDomainButton.type = "button";
     removeDomainButton.className = "secondary";
     removeDomainButton.textContent = "Eliminar";
     removeDomainButton.addEventListener("click", () => {
-      removeAllowedDomain(domain).catch(showSettingsError);
+      removeAllowedDomain(allowedDomain).catch(showSettingsError);
     });
     item.append(label, removeDomainButton);
     allowedDomainsList.append(item);
@@ -115,16 +128,17 @@ async function saveSettings(allowedDomains = savedSettings.allowedDomains) {
   await loadSettings();
 }
 
-async function removeAllowedDomain(domain) {
+async function removeAllowedDomain(allowedDomain) {
   status.textContent = "";
   const allowedDomains = savedSettings.allowedDomains.filter(
-    (savedDomain) => savedDomain !== domain
+    (savedDomain) => savedDomain.domain !== allowedDomain.domain
   );
   await saveSettings(allowedDomains);
   await browser.permissions.remove({
-    origins: getHostPermissionPatterns(domain)
+    origins: hostPermissionPatterns(allowedDomain)
   });
-  status.textContent = `Se eliminó ${domain} de la lista permitida.`;
+  status.textContent =
+    `Se eliminó ${allowedDomain.domain} de la lista permitida.`;
 }
 
 settingsForm.addEventListener("submit", async (event) => {
@@ -143,20 +157,30 @@ domainForm.addEventListener("submit", async (event) => {
   status.textContent = "";
   try {
     const domain = normalizeDomain(domainInput.value);
-    if (savedSettings.allowedDomains.includes(domain)) {
+    if (
+      savedSettings.allowedDomains.some(
+        (savedDomain) => savedDomain.domain === domain
+      )
+    ) {
       throw new Error("Ese dominio ya está en la lista permitida.");
     }
 
+    const allowedDomain = {
+      domain,
+      includeSubdomains: includeSubdomains.checked
+    };
     const granted = await browser.permissions.request({
-      origins: getHostPermissionPatterns(domain)
+      origins: hostPermissionPatterns(allowedDomain)
     });
     if (!granted) {
       throw new Error("Firefox no concedió permiso para ese dominio.");
     }
 
-    await saveSettings([...savedSettings.allowedDomains, domain]);
+    await saveSettings([...savedSettings.allowedDomains, allowedDomain]);
     domainForm.reset();
-    status.textContent = `Se añadió ${domain} y sus subdominios.`;
+    status.textContent = allowedDomain.includeSubdomains
+      ? `Se añadió ${domain} y sus subdominios.`
+      : `Se añadió ${domain} sin sus subdominios.`;
   } catch (error) {
     showSettingsError(error);
   }

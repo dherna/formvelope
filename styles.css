@@ -25,6 +25,13 @@ body.options select {
   background: #fff;
 }
 
+body.options input[type="checkbox"] {
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
 body.popup {
   width: 320px;
   min-height: 360px;
